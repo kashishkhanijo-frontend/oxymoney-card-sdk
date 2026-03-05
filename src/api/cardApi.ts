@@ -74,6 +74,11 @@ export const blockCard = async () => {
   return response.data?.status?.code === 2000;
 };
 
+
+
+
+
+
 // ─── Set PIN ──────────────────────────────────────────────────────────────────
 export const setCardPin = async (otp: string, pin: string) => {
   const cardId = SessionStore.getCardId();
@@ -86,5 +91,6 @@ export const setCardPin = async (otp: string, pin: string) => {
     '/retube/sender-endpoint/v1/card/management/set/pin',
     { data: encrypted.data, key: encrypted.key },
   );
+  console.log('Set PIN Response:', JSON.stringify(response.data));
   return response.data?.status?.code === 2000;
 };
