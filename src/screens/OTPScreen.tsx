@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Image,
   ImageBackground,
   KeyboardAvoidingView,
@@ -133,7 +132,9 @@ const OTPScreen = ({navigation, route}: any) => {
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={ref => (inputRefs.current[index] = ref)}
+                ref={ref => {
+                  inputRefs.current[index] = ref;
+                }}
                 style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
                 keyboardType="numeric"
                 maxLength={1}
