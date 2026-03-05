@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react'; // ← useEffect add karo
-import { Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import { Text, StyleSheet, ScrollView, SafeAreaView, Alert } from 'react-native';
 import InputField from '../components/InputField';
 import ActionButton from '../components/ActionButton';
 import { colors } from '../theme/colors';
 import { encryptRequest, decryptResponse } from '../api/cryptoService';
 import { generateOTP, verifyOTPAndGetToken } from '../api/authApi';
 import { SessionStore } from '../store/sessionStore'; // ← add karo
-import apiClient from '../api/apiClient';
 
 const HomeScreen = ({ navigation }: any) => {
   const [mobile, setMobile] = useState('');
@@ -41,101 +40,67 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
-  const testOTPApi = async () => {
-    if (!mobile) {
-      console.log('Mobile number daalo!');
-      return;
-    }
-    console.log('Mobile:', mobile);
-    const result = await generateOTP(
-      mobile,
-      'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
-      'SENEXTCLT000194',
-    );
-    console.log('OTP Result:', result);
-    if (result) {
-      navigation.navigate('OTP', {
-        mobileNumber: mobile,
-        clientToken: 'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
-        clientId: 'SENEXTCLT000194',
-      });
-    }
-  };
+  const startOtpFlow = async (
+    redirectTo: 'WalletBalance' | 'CardDetails' | 'TransactionHistory',
+  ) => {
+    const mobileNumber = mobile || SessionStore.getMobileNumber() || '';
+    const clientToken =
+      SessionStore.getClientToken() || 'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=';
+    const clientId = SessionStore.getClientId() || 'SENEXTCLT000194';
+    const selectedCardId = cardId || SessionStore.getCardId() || '';
 
-  const testVerifyOTP = async () => {
-    const otpSent = await generateOTP(
-      '7758886766',
-      'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
-      'SENEXTCLT000194',
-    );
-
-    if (!otpSent) {
-      console.log('OTP generate failed!');
+    if (!mobileNumber) {
+      Alert.alert('Missing mobile number', 'Please enter mobile number first.');
       return;
     }
 
-    const token = await verifyOTPAndGetToken(
-      '7758886766',
-      '123456',
-      'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
-      'SENEXTCLT000194',
-    );
-    console.log('Final Token:', token);
-  };
+    SessionStore.init({
+      mobileNumber,
+      clientToken,
+      clientId,
+      cardId: selectedCardId,
+      amount,
+      serviceType,
+      action: redirectTo,
+    });
 
-  const testCardDetails = async () => {
-    try {
-      const encrypted = await encryptRequest({
-        card_id: 'c20b3210-7bb4-4287-9ad3-39bf0d5d5249',
-      });
-
-      const response = await apiClient.post(
-        '/uiObjects/sender-endpoint/v1/card/unmasked',
-        {
-          data: encrypted.data,
-          key: encrypted.key,
-        },
-      );
-
-      console.log('Card Response:', JSON.stringify(response.data));
-
-      if (response.data?.result) {
-        const decrypted = await decryptResponse(
-          response.data.result,
-          encrypted.plainkey,
-        );
-        console.log('Card Decrypted:', decrypted);
-      }
-    } catch (e: any) {
-      console.error('Card Error:', e?.message);
+    const otpResult = await generateOTP(mobileNumber, clientToken, clientId);
+    if (!otpResult) {
+      Alert.alert('OTP failed', 'Unable to send OTP. Please try again.');
+      return;
     }
+
+    navigation.navigate('OTP', {
+      mobileNumber,
+      clientToken,
+      clientId,
+      redirectTo,
+      cardId: selectedCardId,
+      amount,
+      serviceType,
+    });
   };
 
-  const testWalletBalance = async () => {
-    try {
-      const encrypted = await encryptRequest({});
+  // const testVerifyOTP = async () => {
+  //   const otpSent = await generateOTP(
+  //     '7758886766',
+  //     'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
+  //     'SENEXTCLT000194',
+  //   );
 
-      const response = await apiClient.post(
-        '/wallet/sender-endpoint/v1/balance',
-        {
-          data: encrypted.data,
-          key: encrypted.key,
-        },
-      );
+  //   if (!otpSent) {
+  //     console.log('OTP generate failed!');
+  //     return;
+  //   }
 
-      console.log('Wallet Response:', JSON.stringify(response.data));
-
-      if (response.data?.result) {
-        const decrypted = await decryptResponse(
-          response.data.result,
-          encrypted.plainkey,
-        );
-        console.log('Wallet Decrypted:', decrypted);
-      }
-    } catch (e: any) {
-      console.error('Wallet Error:', e?.message);
-    }
-  };
+  //   const token = await verifyOTPAndGetToken(
+  //     '7758886766',
+  //     '123456',
+  //     'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
+  //     'SENEXTCLT000194',
+  //   );
+  //   console.log('Final Token:', token);
+  // };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -170,9 +135,22 @@ const HomeScreen = ({ navigation }: any) => {
           label="Wallet Balance"
           bgColor={colors.btnWallet}
           textColor={colors.btnTextDark}
-          onPress={() => navigation.navigate('WalletBalance')}
+          onPress={() => startOtpFlow('WalletBalance')}
         />
         <ActionButton
+          label="Card Details"
+          bgColor={colors.btnCard}
+          textColor={colors.btnTextDark}
+          onPress={() => startOtpFlow('CardDetails')}
+        />
+        <ActionButton
+          label="Transaction History"
+          bgColor={colors.btnTransaction}
+          textColor={colors.btnTextDark}
+          onPress={() => startOtpFlow('TransactionHistory')}
+        />
+        
+        {/* <ActionButton
           label="Test OTP Screen"
           bgColor="#888888"
           textColor="#FFFFFF"
@@ -185,19 +163,21 @@ const HomeScreen = ({ navigation }: any) => {
               clientId: SessionStore.getClientId() || 'SENEXTCLT000194',
             })
           }
-        />
-        <ActionButton
+        /> */}
+        {/* <ActionButton
           label="📱 Test OTP API"
           bgColor="#2C3E7A"
           textColor="#FFFFFF"
           onPress={testOTPApi}
-        />
-        <ActionButton
+        /> */}
+        
+        {/* <ActionButton
           label="✅ Verify OTP"
           bgColor="#008000"
           textColor="#FFFFFF"
           onPress={testVerifyOTP}
-        />
+        /> */}
+
         <ActionButton
           label="🔐 Test Crypto"
           bgColor="#2C3E7A"
@@ -205,7 +185,7 @@ const HomeScreen = ({ navigation }: any) => {
           onPress={testCrypto}
         />
 
-        <ActionButton
+        {/* <ActionButton
           label="💳 Test Card Details"
           bgColor="#8B0000"
           textColor="#FFFFFF"
@@ -217,7 +197,9 @@ const HomeScreen = ({ navigation }: any) => {
           bgColor="#cfee36"
           textColor="#0a0909"
           onPress={testWalletBalance}
-        />
+        /> */}
+
+
       </ScrollView>
     </SafeAreaView>
   );

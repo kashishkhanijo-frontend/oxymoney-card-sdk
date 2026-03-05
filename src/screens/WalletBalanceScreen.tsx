@@ -56,7 +56,7 @@ const parseDecryptedPayload = (rawPayload: unknown): Record<string, any> => {
     return rawPayload as Record<string, any>;
   }
 
-  const raw = String(rawPayload).replace(/\u0000/g, '').trim();
+  const raw = String(rawPayload).split('\0').join('').trim();
   if (!raw) {
     return {};
   }

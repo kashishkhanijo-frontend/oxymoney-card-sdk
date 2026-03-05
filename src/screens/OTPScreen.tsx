@@ -10,8 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
-import {verifyOTPAndGetToken} from '../api/authApi';
+import {generateOTP, verifyOTPAndGetToken} from '../api/authApi';
+import {SessionStore} from '../store/sessionStore';
 
 const RESEND_TIMER = 52;
 
@@ -25,6 +27,7 @@ const OTPScreen = ({navigation, route}: any) => {
   const mobileNumber = route?.params?.mobileNumber || '';
   const clientToken = route?.params?.clientToken || '';
   const clientId = route?.params?.clientId || '';
+  const redirectTo = route?.params?.redirectTo || SessionStore.getAction() || 'Home';
 
   useEffect(() => {
     if (timer === 0) {
@@ -52,12 +55,21 @@ const OTPScreen = ({navigation, route}: any) => {
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (!canResend) return;
     setOtp(['', '', '', '', '', '']);
     setTimer(RESEND_TIMER);
     setCanResend(false);
     inputRefs.current[0]?.focus();
+
+    if (!mobileNumber || !clientToken || !clientId) {
+      return;
+    }
+
+    const sent = await generateOTP(mobileNumber, clientToken, clientId);
+    if (!sent) {
+      Alert.alert('Resend failed', 'Unable to resend OTP. Please try again.');
+    }
   };
 
   const isComplete = otp.every(d => d !== '');
@@ -81,9 +93,10 @@ const OTPScreen = ({navigation, route}: any) => {
 
     if (token) {
       console.log('✅ Token mila!', token);
-      navigation.navigate('Home');
+      navigation.replace(redirectTo);
     } else {
       console.log('❌ OTP wrong hai');
+      Alert.alert('Invalid OTP', 'Please enter a valid OTP.');
     }
   };
 
