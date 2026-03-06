@@ -1,6 +1,8 @@
 import apiClient from './apiClient';
 import { encryptRequest, decryptResponse } from './cryptoService';
 import { SessionStore } from '../store/sessionStore';
+import { useState } from 'react';
+import { Alert } from 'react-native';
 
 // ─── Get Card Details ─────────────────────────────────────────────────────────
 export const getCardDetails = async () => {
@@ -75,10 +77,6 @@ export const blockCard = async () => {
 };
 
 
-
-
-
-
 // ─── Set PIN ──────────────────────────────────────────────────────────────────
 export const setCardPin = async (otp: string, pin: string) => {
   const cardId = SessionStore.getCardId();
@@ -94,3 +92,4 @@ export const setCardPin = async (otp: string, pin: string) => {
   console.log('Set PIN Response:', JSON.stringify(response.data));
   return response.data?.status?.code === 2000;
 };
+

@@ -11,10 +11,12 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { encryptRequest, decryptResponse } from '../api/cryptoService';
 import apiClient from '../api/apiClient';
+// import { downloadReport } from '../api/cardApi';
 
 const { height } = Dimensions.get('window');
 
@@ -103,9 +105,9 @@ const getStatusStyle = (status: string) => {
 
 const getStatusTextColor = (status: string) => {
   const s = status?.toUpperCase().trim();
-  if (s === 'SUCCESS' || s === 'COMPLETED') return {color: '#08A638'};
-  if (s === 'FAILED') return {color: '#F90202'};
-  return {color: '#F49A47'};
+  if (s === 'SUCCESS' || s === 'COMPLETED') return { color: '#08A638' };
+  if (s === 'FAILED') return { color: '#F90202' };
+  return { color: '#F49A47' };
 };
 
 const getStatusText = (status: string) => {
@@ -312,30 +314,42 @@ const TransactionHistoryScreen = () => {
       }
 
       console.log('Execution ID:', executionId);
+      setExecutionId(executionId);
+      // Step 2: Poll Status — FIX
+      let reportStatus = '';
+      let attempts = 0;
+      while (reportStatus !== 'COMPLETED' && attempts < 20) {
+        // ← 20 attempts
+        await new Promise(r => setTimeout(r, 2000)); // ← 2 second wait
+        const enc2 = await encryptRequest({ execution_id: executionId });
+        const statusRes = await apiClient.post(
+          '/report/sender_endpoint/v1/report/status',
+          {
+            data: enc2.data,
+            key: enc2.key,
+          },
+        );
 
-     // Step 2: Poll Status — FIX
-let reportStatus = '';
-let attempts = 0;
-while (reportStatus !== 'COMPLETED' && attempts < 20) {  // ← 20 attempts
-  await new Promise(r => setTimeout(r, 2000));  // ← 2 second wait
-  const enc2 = await encryptRequest({execution_id: executionId});
-  const statusRes = await apiClient.post('/report/sender_endpoint/v1/report/status', {
-    data: enc2.data,
-    key: enc2.key,
-  });
+        if (statusRes.data?.result) {
+          const dec2 = await decryptResponse(
+            statusRes.data.result,
+            enc2.plainkey,
+          );
+          console.log('Status Decrypted:', dec2);
+          reportStatus = dec2?.executionState || dec2?.status || ''; // ← executionState!
+          console.log(
+            'Current Status:',
+            reportStatus,
+            'Attempt:',
+            attempts + 1,
+          );
+        }
+        attempts++;
+      }
 
-  if (statusRes.data?.result) {
-    const dec2 = await decryptResponse(statusRes.data.result, enc2.plainkey);
-    console.log('Status Decrypted:', dec2);
-    reportStatus = dec2?.executionState || dec2?.status || '';  // ← executionState!
-    console.log('Current Status:', reportStatus, 'Attempt:', attempts + 1);
-  }
-  attempts++;
-}
-
-if (reportStatus !== 'COMPLETED') {
-  throw new Error('Report generation timed out');
-}
+      if (reportStatus !== 'COMPLETED') {
+        throw new Error('Report generation timed out');
+      }
 
       // Step 3: Get Report Page
       const enc3 = await encryptRequest({
@@ -354,34 +368,34 @@ if (reportStatus !== 'COMPLETED') {
 
       console.log('Page Response:', JSON.stringify(pageRes.data));
 
-     if (pageRes.data?.result) {
-  const dec3 = await decryptResponse(pageRes.data.result, enc3.plainkey);
-  console.log('Page Decrypted:', dec3);
+      if (pageRes.data?.result) {
+        const dec3 = await decryptResponse(pageRes.data.result, enc3.plainkey);
+        console.log('Page Decrypted:', dec3);
 
-  // ← Data array of arrays hai, header se map karo
-  const headers = dec3?.header || [];
-  const rawData = dec3?.data || [];
+        // ← Data array of arrays hai, header se map karo
+        const headers = dec3?.header || [];
+        const rawData = dec3?.data || [];
 
-  const mapped = rawData.map((row: any[]) => {
-    const obj: any = {};
-    headers.forEach((h: any) => {
-      obj[h.name] = row[h.index - 1]; // index 1-based hai
-    });
-    return {
-      invoiceNumber:   obj['invoice_number']  || '-',
-      referenceNumber: obj['reference_number'] || '-',
-      channel:         obj['channel']          || '-',
-      requestDate:     obj['Request Date']     || '',
-      txnType:         obj['txn_type']         || '-',
-      amount:          obj['txn_amount']       || '0',
-      description:     obj['Description']      || '-',
-      txnStatus:       obj['txn_status']       || '-',
-    };
-  });
+        const mapped = rawData.map((row: any[]) => {
+          const obj: any = {};
+          headers.forEach((h: any) => {
+            obj[h.name] = row[h.index - 1]; // index 1-based hai
+          });
+          return {
+            invoiceNumber: obj['invoice_number'] || '-',
+            referenceNumber: obj['reference_number'] || '-',
+            channel: obj['channel'] || '-',
+            requestDate: obj['Request Date'] || '',
+            txnType: obj['txn_type'] || '-',
+            amount: obj['txn_amount'] || '0',
+            description: obj['Description'] || '-',
+            txnStatus: obj['txn_status'] || '-',
+          };
+        });
 
-  console.log('Mapped Transactions:', JSON.stringify(mapped));
-  setTransactions(mapped);
-}
+        console.log('Mapped Transactions:', JSON.stringify(mapped));
+        setTransactions(mapped);
+      }
     } catch (e: any) {
       console.error('Transaction History Error:', e?.message);
       setErrorMsg(e?.message || 'Failed to fetch transactions');
@@ -394,6 +408,82 @@ if (reportStatus !== 'COMPLETED') {
     fetchTransactions(startDate, endDate);
   }, []);
 
+  const [executionId, setExecutionId] = useState<string | null>(null);
+
+  const downloadReport = async (format: 'PDF' | 'EXCEL' | 'CSV') => {
+    try {
+      setIsLoading(true);
+
+      // Step 1: Fresh execute karo
+      const payload = {
+        report_name: 'b2cReport',
+        execution_type: 'CACHED',
+        parameters: {
+          from: formatDateForAPI(startDate, false),
+          to: formatDateForAPI(endDate, true),
+        },
+      };
+
+      const enc1 = await encryptRequest(payload);
+      const execRes = await apiClient.post(
+        '/report/sender_endpoint/v1/report/execute',
+        {
+          data: enc1.data,
+          key: enc1.key,
+        },
+      );
+
+      let execId: string | null = null;
+      if (execRes.data?.result) {
+        const dec1 = await decryptResponse(execRes.data.result, enc1.plainkey);
+        execId = Array.isArray(dec1) ? dec1[0] : dec1?.execution_id;
+      }
+
+      if (!execId) throw new Error('execution_id not received');
+
+      // Step 2: COMPLETED hone tak wait karo
+      let status = '';
+      let attempts = 0;
+      while (status !== 'COMPLETED' && attempts < 20) {
+        await new Promise(r => setTimeout(r, 2000));
+        const enc2 = await encryptRequest({ execution_id: execId });
+        const statusRes = await apiClient.post(
+          '/report/sender_endpoint/v1/report/status',
+          {
+            data: enc2.data,
+            key: enc2.key,
+          },
+        );
+        if (statusRes.data?.result) {
+          const dec2 = await decryptResponse(
+            statusRes.data.result,
+            enc2.plainkey,
+          );
+          status = dec2?.executionState || '';
+        }
+        attempts++;
+      }
+
+      if (status !== 'COMPLETED') throw new Error('Timeout');
+
+      // Step 3: Download
+      const enc3 = await encryptRequest({ execution_id: execId, format });
+      const dlRes = await apiClient.post(
+        '/report/sender_endpoint/v1/report/download',
+        {
+          data: enc3.data,
+          key: enc3.key,
+        },
+      );
+
+      console.log('Download Response:', JSON.stringify(dlRes.data));
+      console.log('Download Headers:', JSON.stringify(dlRes.headers));
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Download failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleTransactionPress = (transaction: any) => {
     setSelectedTransaction(transaction);
@@ -512,21 +602,25 @@ if (reportStatus !== 'COMPLETED') {
                     style={[
                       styles.transactionAmount,
 
-// eslint-disable-next-line react-native/no-inline-styles
-{
-  color: transaction.txnType?.toUpperCase() === 'CREDIT' ? '#08A638' : '#121214'
-}
+                      // eslint-disable-next-line react-native/no-inline-styles
+                      {
+                        color:
+                          transaction.txnType?.toUpperCase() === 'CREDIT'
+                            ? '#08A638'
+                            : '#121214',
+                      },
                     ]}
                   >
-                    {transaction.txnType === 'CREDIT' }₹
+                    {transaction.txnType === 'CREDIT'}₹
                     {/* {transaction.txnType?.toUpperCase() === 'CREDIT' ? '+' : '-'}₹{transaction.amount} */}
                     {transaction.amount || transaction.txnAmount || '0'}
                   </Text>
                 </View>
                 <View style={styles.transactionSubHeader}>
-                  <Text style={styles.transactionLabel}>Oxymoney Transaction ID</Text>
+                  <Text style={styles.transactionLabel}>
+                    Oxymoney Transaction ID
+                  </Text>
                   <View style={getStatusStyle(transaction.txnStatus)}>
-                    
                     <Text
                       style={[
                         styles.statusText,
@@ -537,6 +631,7 @@ if (reportStatus !== 'COMPLETED') {
                     </Text>
                   </View>
                 </View>
+
                 <View style={styles.transactionFooter}>
                   <Text style={styles.transactionId}>
                     {transaction.invoiceNumber || transaction.txnId || '-'}
@@ -550,6 +645,20 @@ if (reportStatus !== 'COMPLETED') {
               </TouchableOpacity>
             ))}
             <View style={{ height: 30 }} />
+            <TouchableOpacity
+              onPress={() => executionId && downloadReport(executionId, 'PDF')}
+              // eslint-disable-next-line react-native/no-inline-styles
+              style={{
+                padding: 10,
+                backgroundColor: '#017EBF',
+                margin: 10,
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ color: '#fff', textAlign: 'center' }}>
+                Test Download PDF
+              </Text>
+            </TouchableOpacity>
           </ScrollView>
         )}
       </View>
