@@ -1402,6 +1402,28 @@ PODS:
     - ReactNativeDependencies
   - react-native-aes (3.3.0):
     - React-Core
+  - react-native-capture-protection (2.4.1):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-get-random-values (2.0.0):
     - hermes-engine
     - RCTRequired
@@ -1992,6 +2014,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-aes (from `../node_modules/react-native-aes-crypto`)
+  - react-native-capture-protection (from `../node_modules/react-native-capture-protection`)
   - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
   - react-native-rsa-native (from `../node_modules/react-native-rsa-native`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
@@ -2113,6 +2136,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-aes:
     :path: "../node_modules/react-native-aes-crypto"
+  react-native-capture-protection:
+    :path: "../node_modules/react-native-capture-protection"
   react-native-get-random-values:
     :path: "../node_modules/react-native-get-random-values"
   react-native-rsa-native:
@@ -2234,6 +2259,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: f4ee8c62e0ef8359d139124f35a471518a172cd3
   React-microtasksnativemodule: d1956f0eec54c619b63a379520fb4c618a55ccb9
   react-native-aes: 0cad0a1f0087171b4af762c39d7199716d9335b5
+  react-native-capture-protection: 813b00ddd5e6d41849800674022e0ff4544f5f62
   react-native-get-random-values: a603782b2b222a34533c66371614790282dba3f1
   react-native-rsa-native: a7931cdda1f73a8576a46d7f431378c5550f0c38
   react-native-safe-area-context: ae7587b95fb580d1800c5b0b2a7bd48c2868e67a

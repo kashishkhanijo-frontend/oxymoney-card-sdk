@@ -19,6 +19,7 @@
     "react": "19.2.3",
     "react-native": "0.84.1",
     "react-native-aes-crypto": "^3.3.0",
+    "react-native-capture-protection": "^2.4.1",
     "react-native-get-random-values": "^2.0.0",
     "react-native-rsa-native": "^2.0.5",
     "react-native-safe-area-context": "^5.7.0",

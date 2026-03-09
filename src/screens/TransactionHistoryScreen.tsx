@@ -532,7 +532,7 @@ const TransactionHistoryScreen = () => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Transaction History</Text>
         </View>
-       
+
         <TouchableOpacity onPress={handleOpenFilter}>
           <View style={styles.filterIconBtn}>
             <Image
@@ -603,11 +603,10 @@ const TransactionHistoryScreen = () => {
                       transaction.txnDescription ||
                       'Transaction'}
                   </Text>
-                  <Text
+                  {/* <Text
                     style={[
                       styles.transactionAmount,
 
-                      // eslint-disable-next-line react-native/no-inline-styles
                       {
                         color:
                           transaction.txnType?.toUpperCase() === 'CREDIT'
@@ -617,8 +616,24 @@ const TransactionHistoryScreen = () => {
                     ]}
                   >
                     {transaction.txnType === 'CREDIT'}₹
-                    {/* {transaction.txnType?.toUpperCase() === 'CREDIT' ? '+' : '-'}₹{transaction.amount} */}
                     {transaction.amount || transaction.txnAmount || '0'}
+                  </Text> */}
+
+                  <Text
+                    style={[
+                      styles.transactionAmount,
+                      // eslint-disable-next-line react-native/no-inline-styles
+                      {
+                        color:
+                          transaction.txnStatus?.toUpperCase() === 'FAILED'
+                            ? '#F90202'
+                            : transaction.txnType?.toUpperCase() === 'CREDIT'
+                            ? '#08A638'
+                            : '#121214',
+                      },
+                    ]}
+                  >
+                    ₹{transaction.amount || transaction.txnAmount || '0'}
                   </Text>
                 </View>
                 <View style={styles.transactionSubHeader}>
@@ -997,10 +1012,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   filterIcon: {
-  width: 20,
-  height: 20,
-  resizeMode: "contain",
-},
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+  },
   retryText: { color: '#fff', fontWeight: '600' },
   emptyText: { color: '#797E82', fontSize: 16 },
   transactionCard: {

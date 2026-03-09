@@ -1,35 +1,61 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from '../screens/HomeScreen';
+import React from "react";
+import { Platform } from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { CaptureProtection } from "react-native-capture-protection";
 
-// Placeholder screens (we'll build these next)
-// import { View, Text } from 'react-native';
-import OTPScreen from '../screens/OTPScreen';
-import WalletBalanceScreen from '../screens/WalletBalanceScreen';
-import TransactionHistoryScreen from '../screens/TransactionHistoryScreen';
-import CardDetailsScreen from '../screens/CardDetailsScreen';
-
-// const Placeholder = ({ route }: any) => (
-//   <View
-//     style={{
-//       flex: 1,
-//       backgroundColor: '#121212',
-//       alignItems: 'center',
-//       justifyContent: 'center',
-//     }}
-//   >
-//     <Text style={{ color: '#fff', fontSize: 18 }}>
-//       {route.name} - Coming Soon
-//     </Text>
-//   </View>
-// );
+import HomeScreen from "../screens/HomeScreen";
+import OTPScreen from "../screens/OTPScreen";
+import WalletBalanceScreen from "../screens/WalletBalanceScreen";
+import TransactionHistoryScreen from "../screens/TransactionHistoryScreen";
+import CardDetailsScreen from "../screens/CardDetailsScreen";
 
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
+
+  // 🔐 Screens jaha screenshot ALLOW karna hai
+  const SCREENSHOT_ALLOWED_SCREENS = [
+    "Home",
+    "TransactionHistory",
+    "CardDetails",
+    "WalletBalance"
+  ];
+
+  const getActiveRouteName = (state: any): string => {
+    const route = state.routes[state.index];
+    if (route.state) {
+      return getActiveRouteName(route.state);
+    }
+    return route.name;
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      onStateChange={(state) => {
+        if (!state || Platform.OS !== "ios") return;
+
+        const currentRouteName = getActiveRouteName(state);
+
+        console.log("ACTIVE SCREEN:", currentRouteName);
+
+        if (SCREENSHOT_ALLOWED_SCREENS.includes(currentRouteName)) {
+          // ✅ Allow screenshot
+          CaptureProtection.allow({
+            screenshot: true,
+            record: true,
+            appSwitcher: true,
+          });
+        } else {
+          // ❌ Block screenshot
+          CaptureProtection.prevent({
+            screenshot: true,
+            record: true,
+            appSwitcher: true,
+          });
+        }
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="TransactionHistory" component={TransactionHistoryScreen} />
