@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { encryptRequest, decryptResponse } from '../api/cryptoService';
@@ -531,9 +532,13 @@ const TransactionHistoryScreen = () => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Transaction History</Text>
         </View>
+       
         <TouchableOpacity onPress={handleOpenFilter}>
           <View style={styles.filterIconBtn}>
-            <Text style={styles.filterIconText}>⚙</Text>
+            <Image
+              source={require('../assets/images/Vectorimg.png')}
+              style={styles.filterIcon}
+            />
           </View>
         </TouchableOpacity>
       </View>
@@ -991,6 +996,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
+  filterIcon: {
+  width: 20,
+  height: 20,
+  resizeMode: "contain",
+},
   retryText: { color: '#fff', fontWeight: '600' },
   emptyText: { color: '#797E82', fontSize: 16 },
   transactionCard: {

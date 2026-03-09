@@ -81,26 +81,26 @@ const HomeScreen = ({ navigation }: any) => {
     });
   };
 
-  // const testVerifyOTP = async () => {
-  //   const otpSent = await generateOTP(
-  //     '7758886766',
-  //     'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
-  //     'SENEXTCLT000194',
-  //   );
+  const testVerifyOTP = async () => {
+    const otpSent = await generateOTP(
+      '7758886766',
+      'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
+      'SENEXTCLT000194',
+    );
 
-  //   if (!otpSent) {
-  //     console.log('OTP generate failed!');
-  //     return;
-  //   }
+    if (!otpSent) {
+      console.log('OTP generate failed!');
+      return;
+    }
 
-  //   const token = await verifyOTPAndGetToken(
-  //     '7758886766',
-  //     '123456',
-  //     'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
-  //     'SENEXTCLT000194',
-  //   );
-  //   console.log('Final Token:', token);
-  // };
+    const token = await verifyOTPAndGetToken(
+      '7758886766',
+      '123456',
+      'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
+      'SENEXTCLT000194',
+    );
+    console.log('Final Token:', token);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -171,12 +171,12 @@ const HomeScreen = ({ navigation }: any) => {
           onPress={testOTPApi}
         /> */}
         
-        {/* <ActionButton
+        <ActionButton
           label="✅ Verify OTP"
           bgColor="#008000"
           textColor="#FFFFFF"
           onPress={testVerifyOTP}
-        /> */}
+        />
 
         <ActionButton
           label="🔐 Test Crypto"

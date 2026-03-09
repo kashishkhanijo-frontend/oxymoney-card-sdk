@@ -61,19 +61,47 @@ export const setCardStatus = async (usageStatus: 'ENABLED' | 'DISABLED') => {
   return response.data?.status?.code === 2000;
 };
 
-// ─── Block Card ───────────────────────────────────────────────────────────────
-export const blockCard = async () => {
-  const cardId = SessionStore.getCardId();
-  const encrypted = await encryptRequest({ 
-    card_id: cardId,
-    usage_status: 'BLOCKED',  // ← try karo
-  });
-  const response = await apiClient.post(
-    '/retube/sender-endpoint/v1/card/management/block/card',
-    { data: encrypted.data, key: encrypted.key },
-  );
-  console.log('Block Card Response:', JSON.stringify(response.data));
-  return response.data?.status?.code === 2000;
+// // ─── Block Card ───────────────────────────────────────────────────────────────
+// export const blockCard = async (reason: string): Promise<boolean> => {
+//   try {
+//     const cardId = SessionStore.getCardId();
+//     console.log('Block Card - cardId:', cardId, 'reason:', reason);
+    
+//     const encrypted = await encryptRequest({ 
+//       card_id: cardId,  // ← add karo
+//       reason: reason,
+//     });
+//     const response = await apiClient.post(
+//       '/retube/sender-endpoint/v1/card/management/block/card',
+//       { data: encrypted.data, key: encrypted.key },
+//     );
+//     console.log('Block Card Response:', JSON.stringify(response.data));
+//     return response.data?.status?.code === 2000;
+//   } catch (e: any) {
+//     console.error('Block Card Error:', e?.message);
+//     return false;
+//   }
+// };
+
+export const blockCard = async (reason: string): Promise<'success' | 'already_blocked' | 'failed'> => {
+  try {
+    const cardId = SessionStore.getCardId();
+    const encrypted = await encryptRequest({ 
+      card_id: cardId,
+      reason: reason,
+    });
+    const response = await apiClient.post(
+      '/retube/sender-endpoint/v1/card/management/block/card',
+      { data: encrypted.data, key: encrypted.key },
+    );
+    const code = response.data?.status?.code;
+    if (code === 2000) return 'success';
+    if (code === 4164) return 'already_blocked';  // duplicate.request
+    return 'failed';
+  } catch (e: any) {
+    console.error('Block Card Error:', e?.message);
+    return 'failed';
+  }
 };
 
 
