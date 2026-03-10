@@ -33,18 +33,42 @@ export const getCardChannel = async () => {
 };
 
 // ─── Update Card Channel ──────────────────────────────────────────────────────
-export const updateCardChannel = async (channelUpdates: Record<string, boolean>) => {
-  const cardId = SessionStore.getCardId();
-  const encrypted = await encryptRequest({
-    card_id: cardId,
-    channelStatusUpdates: channelUpdates,  // ← yahi format chahiye
-  });
-  const response = await apiClient.post(
-    '/retube/sender-endpoint/v1/card/management/update/card/channel',
-    { data: encrypted.data, key: encrypted.key },
-  );
-  console.log('Update Channel Response:', JSON.stringify(response.data));
-  return response.data?.status?.code === 2000;
+// export const updateCardChannel = async (channelUpdates: Record<string, boolean>) => {
+//   const cardId = SessionStore.getCardId();
+//   const encrypted = await encryptRequest({
+//     card_id: cardId,
+//     channelStatusUpdates: channelUpdates,  // ← yahi format chahiye
+//   });
+//   const response = await apiClient.post(
+//     '/retube/sender-endpoint/v1/card/management/update/card/channel',
+//     { data: encrypted.data, key: encrypted.key },
+//   );
+//   console.log('Update Channel Response:', JSON.stringify(response.data));
+//   return response.data?.status?.code === 2000;
+// };
+
+export const updateCardChannel = async (channelUpdates: Record<string, boolean>): Promise<{success: boolean; message: string}> => {
+  try {
+    const cardId = SessionStore.getCardId();
+    const encrypted = await encryptRequest({
+      card_id: cardId,
+      channelStatusUpdates: channelUpdates,
+    });
+    const response = await apiClient.post(
+      '/retube/sender-endpoint/v1/card/management/update/card/channel',
+      { data: encrypted.data, key: encrypted.key },
+    );
+    console.log('Update Channel Response:', JSON.stringify(response.data));
+    
+    const code = response.data?.status?.code;
+    const message = response.data?.status?.message || 'Something went wrong';
+    
+    if (code === 2000) return { success: true, message: 'Channel updated successfully' };
+    return { success: false, message }; // ← backend ka exact message
+    
+  } catch (e: any) {
+    return { success: false, message: e?.message || 'Network error' };
+  }
 };
 
 // ─── Set Card Status (Enable/Disable) ────────────────────────────────────────

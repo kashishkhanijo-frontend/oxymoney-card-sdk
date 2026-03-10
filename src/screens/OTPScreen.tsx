@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,13 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import {generateOTP, verifyOTPAndGetToken} from '../api/authApi';
-import {SessionStore} from '../store/sessionStore';
+import { generateOTP, verifyOTPAndGetToken } from '../api/authApi';
+import { SessionStore } from '../store/sessionStore';
+import { Linking } from 'react-native';
 
 const RESEND_TIMER = 52;
 
-const OTPScreen = ({navigation, route}: any) => {
+const OTPScreen = ({ navigation, route }: any) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(RESEND_TIMER);
   const [canResend, setCanResend] = useState(false);
@@ -27,7 +28,8 @@ const OTPScreen = ({navigation, route}: any) => {
   const mobileNumber = route?.params?.mobileNumber || '';
   const clientToken = route?.params?.clientToken || '';
   const clientId = route?.params?.clientId || '';
-  const redirectTo = route?.params?.redirectTo || SessionStore.getAction() || 'Home';
+  const redirectTo =
+    route?.params?.redirectTo || SessionStore.getAction() || 'Home';
 
   useEffect(() => {
     if (timer === 0) {
@@ -47,6 +49,13 @@ const OTPScreen = ({navigation, route}: any) => {
     if (text && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+  };
+  const openTerms = () => {
+    Linking.openURL('https://www.oxymoney.com/general-terms-and-conditions');
+  };
+
+  const openPrivacy = () => {
+    Linking.openURL('https://www.oxymoney.com/privacy-policy');
   };
 
   const handleKeyPress = (event: any, index: number) => {
@@ -75,13 +84,16 @@ const OTPScreen = ({navigation, route}: any) => {
   const isComplete = otp.every(d => d !== '');
 
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
 
   const handleVerify = async () => {
     const otpString = otp.join('');
+     SessionStore.setOtp(otpString); 
     console.log('Verifying OTP:', otpString, 'for mobile:', mobileNumber);
 
     const token = await verifyOTPAndGetToken(
@@ -92,10 +104,10 @@ const OTPScreen = ({navigation, route}: any) => {
     );
 
     if (token) {
-      console.log('✅ Token mila!', token);
+      console.log('✅ Token !', token);
       navigation.replace(redirectTo);
     } else {
-      console.log('❌ OTP wrong hai');
+      console.log('❌ OTP wrong ');
       Alert.alert('Invalid OTP', 'Please enter a valid OTP.');
     }
   };
@@ -103,11 +115,13 @@ const OTPScreen = ({navigation, route}: any) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{flex: 1, backgroundColor: 'white'}}>
+      style={{ flex: 1, backgroundColor: 'white' }}
+    >
       <ScrollView keyboardShouldPersistTaps="handled">
         <ImageBackground
           source={require('../assets/images/loginfram.png')}
-          style={{width: '100%', height: 300}}>
+          style={{ width: '100%', height: 300 }}
+        >
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <View style={styles.backBtn}>
               <Image
@@ -116,18 +130,20 @@ const OTPScreen = ({navigation, route}: any) => {
               />
             </View>
           </TouchableOpacity>
-          <View style={{width: '100%', alignItems: 'center', marginTop: 50}}>
+
+          <View style={{ width: '100%', alignItems: 'center', marginTop: 50 }}>
             <Image
               source={require('../assets/images/mylogo.png')}
-              style={{width: 190, height: 82}}
+              style={{ width: 190, height: 82 }}
             />
           </View>
         </ImageBackground>
 
-        <View style={{width: '100%', flexDirection: 'row'}}>
+        <View style={{ width: '100%', flexDirection: 'row' }}>
           <ImageBackground
             source={require('../assets/images/loginfram.png')}
-            style={{width: '100%', height: 100}}>
+            style={{ width: '100%', height: 100 }}
+          >
             <View style={styles.curveOverlay} />
           </ImageBackground>
         </View>
@@ -139,7 +155,7 @@ const OTPScreen = ({navigation, route}: any) => {
           </Text>
 
           <Text style={styles.label}>
-            OTP <Text style={{color: 'red'}}>*</Text>
+            OTP <Text style={{ color: 'red' }}>*</Text>
           </Text>
           <View style={styles.otpRow}>
             {otp.map((digit, index) => (
@@ -164,8 +180,9 @@ const OTPScreen = ({navigation, route}: any) => {
               <Text
                 style={[
                   styles.resendLink,
-                  {color: canResend ? '#363636' : '#B0B0B0'},
-                ]}>
+                  { color: canResend ? '#363636' : '#B0B0B0' },
+                ]}
+              >
                 {' '}
                 Resend{!canResend ? ` in ${formatTime(timer)}` : ''}
               </Text>
@@ -175,22 +192,27 @@ const OTPScreen = ({navigation, route}: any) => {
           <TouchableOpacity
             style={[
               styles.verifyBtn,
-              {backgroundColor: isComplete ? '#363636' : '#B0B0B0'},
+              { backgroundColor: isComplete ? '#363636' : '#B0B0B0' },
             ]}
             disabled={!isComplete}
-            onPress={handleVerify}>
+            onPress={handleVerify}
+          >
             <Text style={styles.verifyText}>Verify</Text>
           </TouchableOpacity>
 
           <Text style={styles.terms}>
             By logging in, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms & Conditions</Text>
-            {' '}and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
+            <Text style={styles.termsLink} onPress={openTerms}>
+              Terms & Conditions
+            </Text>{' '}
+            and{' '}
+            <Text style={styles.termsLink} onPress={openPrivacy}>
+              Privacy Policy
+            </Text>
           </Text>
         </View>
 
-        <View style={{height: 80}} />
+        <View style={{ height: 80 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -209,7 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chevron: {width: 8, height: 14},
+  chevron: { width: 8, height: 14 },
   curveOverlay: {
     width: '100%',
     backgroundColor: 'white',
@@ -221,9 +243,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: '6%',
     marginTop: -80,
   },
-  heading: {fontSize: 32, color: 'black', fontWeight: '600'},
-  subtext: {fontSize: 12, color: '#555555', marginTop: 10, lineHeight: 18},
-  label: {fontSize: 14, fontWeight: '400', marginTop: 20, color: 'black'},
+  heading: { fontSize: 32, color: 'black', fontWeight: '600' },
+  subtext: { fontSize: 12, color: '#555555', marginTop: 10, lineHeight: 18 },
+  label: { fontSize: 14, fontWeight: '400', marginTop: 20, color: 'black' },
   otpRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -241,13 +263,13 @@ const styles = StyleSheet.create({
     color: '#000000',
     backgroundColor: '#F9F9F9',
   },
-  otpBoxFilled: {borderColor: '#363636', backgroundColor: '#FFFFFF'},
+  otpBoxFilled: { borderColor: '#363636', backgroundColor: '#FFFFFF' },
   resendRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
   },
-  resendText: {fontSize: 12, color: '#555'},
+  resendText: { fontSize: 12, color: '#555' },
   resendLink: {
     fontSize: 12,
     fontWeight: '600',
@@ -260,7 +282,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  verifyText: {color: '#FFFFFF', fontSize: 14, fontWeight: '500'},
+  verifyText: { color: '#FFFFFF', fontSize: 14, fontWeight: '500' },
   terms: {
     fontSize: 11,
     color: '#777777',

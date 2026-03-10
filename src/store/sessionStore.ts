@@ -10,6 +10,7 @@ interface SessionData {
   action: string | null;
   amount: string | null;
   serviceType: string | null;
+  otp: string | null;
 }
 
 let session: SessionData = {
@@ -21,6 +22,7 @@ let session: SessionData = {
   action: null,
   amount: null,
   serviceType: null,
+  otp: null,
 };
 
 export const SessionStore = {
@@ -33,8 +35,8 @@ export const SessionStore = {
   setAction: (action: string) => { session.action = action; },
   setAmount: (amount: string) => { session.amount = amount; },
   setServiceType: (serviceType: string) => { session.serviceType = serviceType; },
+  setOtp: (otp: string) => { session.otp = otp; }, // ← ADD
 
-  // Initialize SDK — client app se data aayega
   init: (data: Partial<SessionData>) => {
     session = { ...session, ...data };
   },
@@ -48,8 +50,8 @@ export const SessionStore = {
   getAction: () => session.action,
   getAmount: () => session.amount,
   getServiceType: () => session.serviceType,
+  getOtp: () => session.otp, // ← ADD
 
-  // Clear — jab user back kare
   clear: () => {
     session = {
       token: null,
@@ -60,9 +62,9 @@ export const SessionStore = {
       action: null,
       amount: null,
       serviceType: null,
+      otp: null, // ← ADD
     };
   },
 
-  // Debug
   getAll: () => ({ ...session }),
 };

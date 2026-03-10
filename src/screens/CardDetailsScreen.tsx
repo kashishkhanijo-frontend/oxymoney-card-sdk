@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import Colors from '../theme/colors';
+
 import {
   getCardDetails,
   getCardChannel,
@@ -26,6 +27,7 @@ import {
   blockCard,
   setCardPin,
 } from '../api/cardApi';
+import { SessionStore } from '../store/sessionStore';
 
 const {width} = Dimensions.get('window');
 const CARD_WIDTH = width - 48; // 24px padding on each side
@@ -240,6 +242,7 @@ const BLOCK_REASONS = [
   const fetchChannel = useCallback(async () => {
     try {
       const data = await getCardChannel();
+      console.log('Channel Raw Data:', JSON.stringify(data)); 
       if (data?.ecom?.status !== undefined) {
         setEcomEnabled(data.ecom.status === 'ENABLED');
       }
@@ -255,46 +258,64 @@ const BLOCK_REASONS = [
     fetchChannel();
   }, [fetchCardDetails, fetchChannel]);
 
-  // fetchCardDetails aur fetchChannel ke baad — useEffect mein add karo
-useEffect(() => {
-  if (!isLoading) {
-    console.log('═══════════════════════════════');
-    console.log('📦 CARD DATA BOUND VALUES:');
-    console.log('card_no:', cardData.card_no);
-    console.log('cvv:', cardData.cvv);
-    console.log('expiry_date:', cardData.expiry_date);
-    console.log('cardholder_name:', cardData.cardholder_name);
-    console.log('company_name:', cardData.company_name);
-    console.log('card_usage_status:', cardData.card_usage_status);
-    console.log('type_of_card:', cardData.type_of_card);
-    console.log('───────────────────────────────');
-    console.log('🔌 DERIVED VALUES:');
-    console.log('isEnabled:', cardData.card_usage_status === 'ENABLED');
-    console.log('statusBadge:', cardData.card_usage_status === 'ENABLED' ? 'statusBadgeEnabled' : 'statusBadgeDisabled');
-    console.log('───────────────────────────────');
-    console.log('🔄 CHANNEL STATE:');
-    console.log('ecomEnabled:', ecomEnabled);
-    console.log('═══════════════════════════════');
-  }
-}, [isLoading, cardData, ecomEnabled]);
+//   // fetchCardDetails aur fetchChannel ke baad — useEffect mein add karo
+// useEffect(() => {
+//   if (!isLoading) {
+//     console.log('═══════════════════════════════');
+//     console.log('📦 CARD DATA BOUND VALUES:');
+//     console.log('card_no:', cardData.card_no);
+//     console.log('cvv:', cardData.cvv);
+//     console.log('expiry_date:', cardData.expiry_date);
+//     console.log('cardholder_name:', cardData.cardholder_name);
+//     console.log('company_name:', cardData.company_name);
+//     console.log('card_usage_status:', cardData.card_usage_status);
+//     console.log('type_of_card:', cardData.type_of_card);
+//     console.log('───────────────────────────────');
+//     console.log('🔌 DERIVED VALUES:');
+//     console.log('isEnabled:', cardData.card_usage_status === 'ENABLED');
+//     console.log('statusBadge:', cardData.card_usage_status === 'ENABLED' ? 'statusBadgeEnabled' : 'statusBadgeDisabled');
+//     console.log('───────────────────────────────');
+//     console.log('🔄 CHANNEL STATE:');
+//     console.log('ecomEnabled:', ecomEnabled);
+//     console.log('═══════════════════════════════');
+//   }
+// }, [isLoading, cardData, ecomEnabled]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
+  // const handleEcomToggle = async (value: boolean) => {
+  //   setChannelLoading(true);
+  //   try {
+  //     const success = await updateCardChannel({ECOM: value});
+  //     if (success) {
+  //       setEcomEnabled(value);
+  //       Alert.alert('Success', `E-Commerce ${value ? 'enabled' : 'disabled'}`);
+  //     } else {
+  //       Alert.alert('Error', 'Failed to update channel');
+  //     }
+  //   } catch (e: any) {
+  //     Alert.alert('Error', e?.message || 'Something went wrong');
+  //   } finally {
+  //     setChannelLoading(false);
+  //   }
+  // };
+
   const handleEcomToggle = async (value: boolean) => {
-    setChannelLoading(true);
-    try {
-      const success = await updateCardChannel({ECOM: value});
-      if (success) {
-        setEcomEnabled(value);
-        Alert.alert('Success', `E-Commerce ${value ? 'enabled' : 'disabled'}`);
-      } else {
-        Alert.alert('Error', 'Failed to update channel');
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Something went wrong');
-    } finally {
-      setChannelLoading(false);
+  if (value === ecomEnabled) return;
+  setChannelLoading(true);
+  try {
+    const result = await updateCardChannel({ECOM: value});
+    if (result.success) {
+      setEcomEnabled(value);
+      Alert.alert('Success', result.message);
+    } else {
+      Alert.alert('Failed', result.message); 
     }
-  };
+  } catch (e: any) {
+    Alert.alert('Error', e?.message);
+  } finally {
+    setChannelLoading(false);
+  }
+};
 
   const handleToggleCardStatus = async () => {
     const blockedState = resolveCardStatus(cardData).isBlocked;
@@ -376,12 +397,13 @@ useEffect(() => {
   //   }
   // };
 
+  
+
   const handleSetPin = () => {
-    setPinOtp('');
-    setNewPin('');
-    setConfirmPin('');
-    setPinStep('otp');
-  };
+  setNewPin('');
+  setConfirmPin('');
+  setPinStep('pin'); 
+};
 
   const handleOtpSubmit = () => {
     if (pinOtp.length !== 6) {
@@ -394,30 +416,59 @@ useEffect(() => {
   };
 
   const handlePinSubmit = async () => {
-    if (newPin.length !== 4) {
-      Alert.alert('Error', 'PIN must be 4 digits');
-      return;
+  if (newPin.length !== 4) {
+    Alert.alert('Error', 'PIN must be 4 digits');
+    return;
+  }
+  if (newPin !== confirmPin) {
+    Alert.alert('Error', 'PINs do not match');
+    return;
+  }
+  setPinLoading(true);
+  try {
+    // const loginOtp = '123456';
+    const loginOtp = SessionStore.getOtp() || '123456'; 
+    
+    const success = await setCardPin(loginOtp, newPin);
+    if (success) {
+      setPinStep(null);
+      Alert.alert('Success', 'PIN set successfully!');
+    } else {
+      Alert.alert('Error', 'Failed to set PIN.');
+      setPinStep(null);
     }
-    if (newPin !== confirmPin) {
-      Alert.alert('Error', 'PINs do not match');
-      return;
-    }
-    setPinLoading(true);
-    try {
-      const success = await setCardPin(pinOtp, newPin);
-      if (success) {
-        setPinStep(null);
-        Alert.alert('Success', 'PIN set successfully!');
-      } else {
-        Alert.alert('Error', 'Failed to set PIN. Check OTP and try again.');
-        setPinStep(null);
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Something went wrong');
-    } finally {
-      setPinLoading(false);
-    }
-  };
+  } catch (e: any) {
+    Alert.alert('Error', e?.message || 'Something went wrong');
+  } finally {
+    setPinLoading(false);
+  }
+};
+
+  // const handlePinSubmit = async () => {
+  //   if (newPin.length !== 4) {
+  //     Alert.alert('Error', 'PIN must be 4 digits');
+  //     return;
+  //   }
+  //   if (newPin !== confirmPin) {
+  //     Alert.alert('Error', 'PINs do not match');
+  //     return;
+  //   }
+  //   setPinLoading(true);
+  //   try {
+  //     const success = await setCardPin(pinOtp, newPin);
+  //     if (success) {
+  //       setPinStep(null);
+  //       Alert.alert('Success', 'PIN set successfully!');
+  //     } else {
+  //       Alert.alert('Error', 'Failed to set PIN. Check OTP and try again.');
+  //       setPinStep(null);
+  //     }
+  //   } catch (e: any) {
+  //     Alert.alert('Error', e?.message || 'Something went wrong');
+  //   } finally {
+  //     setPinLoading(false);
+  //   }
+  // };
 
   const confirmBlockCard = async () => {
   if (!selectedBlockReason) {
@@ -1047,7 +1098,7 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 20,
     color: '#000',
-    letterSpacing: 8,
+    // letterSpacing: 8,
     backgroundColor: '#F8FAFD',
   },
   pinInputTopSpacing: {marginTop: 12},
