@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // ← useEffect add karo
+import React, { useState, useEffect } from 'react'; 
 import { Text, StyleSheet, ScrollView, SafeAreaView, Alert } from 'react-native';
 import InputField from '../components/InputField';
 import ActionButton from '../components/ActionButton';
@@ -20,7 +20,7 @@ const HomeScreen = ({ navigation }: any) => {
       clientId: 'SENEXTCLT000194',
       clientToken: 'K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=',
       mobileNumber: '7758886766',
-      cardId: 'c20b3210-7bb4-4287-9ad3-39bf0d5d5249',
+      cardId: 'fabe1820-53b2-446b-a1e4-cd546abde96d',
     });
     console.log('✅ Session initialized:', SessionStore.getAll());
   }, []);
@@ -171,7 +171,7 @@ const HomeScreen = ({ navigation }: any) => {
           onPress={testOTPApi}
         /> */}
         
-        <ActionButton
+        {/* <ActionButton
           label="✅ Verify OTP"
           bgColor="#008000"
           textColor="#FFFFFF"
@@ -183,7 +183,7 @@ const HomeScreen = ({ navigation }: any) => {
           bgColor="#2C3E7A"
           textColor="#FFFFFF"
           onPress={testCrypto}
-        />
+        /> */}
 
         {/* <ActionButton
           label="💳 Test Card Details"

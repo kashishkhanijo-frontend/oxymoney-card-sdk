@@ -49,7 +49,7 @@ export const generateOTP = async (
         headers: {
           'client-id': clientId,
         },
-      }
+      },
     );
 
     console.log('OTP API Response:', JSON.stringify(response.data));
@@ -61,7 +61,6 @@ export const generateOTP = async (
 
     console.error('OTP failed:', response.data?.status?.message);
     return false;
-
   } catch (e: any) {
     console.error('Generate OTP Error:', e?.message);
     return false;
@@ -97,12 +96,26 @@ export const verifyOTPAndGetToken = async (
 
     const encrypted = await encryptRequest(payload);
 
+    // const response = await apiClient.post(
+    //   '/authserver/client/token',
+    //   {
+    //     data: encrypted.data, // ← encrypted data
+    //     key: encrypted.key, // ← RSA encrypted AES key
+    //     // plainkey bilkul mat bhejo!
+    //   },
+    //   {
+    //     headers: {
+    //       'client-id': clientId,
+    //     },
+    //   },
+    // );
+   
     const response = await apiClient.post(
   '/authserver/client/token',
   {
-    data: encrypted.data,  // ← encrypted data
-    key: encrypted.key,    // ← RSA encrypted AES key
-    // plainkey bilkul mat bhejo!
+    plainkey: encrypted.plainkey,
+    data: encrypted.data,
+    key: encrypted.key,
   },
   {
     headers: {
@@ -128,25 +141,24 @@ export const verifyOTPAndGetToken = async (
     console.log('Token Raw Response:', JSON.stringify(response.data));
 
     // authApi.ts mein yeh fix karo
-if (response.data?.result) {
-  const decrypted = await decryptResponse(
-    response.data.result,
-    encrypted.plainkey,
-  );
-  console.log('Decrypted Token Response:', decrypted);
+    if (response.data?.result) {
+      const decrypted = await decryptResponse(
+        response.data.result,
+        encrypted.plainkey,
+      );
+      console.log('Decrypted Token Response:', decrypted);
 
-  // ← JSON.parse mat karo — already object hai
-  const accessToken = decrypted?.access_token;
+      // ← JSON.parse mat karo — already object hai
+      const accessToken = decrypted?.access_token;
 
-  if (accessToken) {
-    SessionStore.setToken(accessToken);
-    console.log('✅ Token saved:', accessToken);
-    return accessToken;
-  }
-}
+      if (accessToken) {
+        SessionStore.setToken(accessToken);
+        console.log('✅ Token saved:', accessToken);
+        return accessToken;
+      }
+    }
 
     return null;
-
   } catch (e: any) {
     console.error('Verify OTP Error:', e?.message);
     return null;
