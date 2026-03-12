@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,13 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
-  Alert,
   Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { encryptRequest, decryptResponse } from '../api/cryptoService';
-import apiClient from '../api/apiClient';
-// import { downloadReport } from '../api/cardApi';
+
+import apiClient from '../api/apiClient'; 
+// import { downloadReport } from '../services/cardApi';
 
 const { height } = Dimensions.get('window');
 
@@ -38,7 +38,9 @@ const formatDateForAPI = (date: Date, isEnd: boolean) => {
 
 const formatTransactionDate = (dateString: string) => {
   try {
+    if (!dateString) return '';
     const [datePart, timePart] = dateString.split(' ');
+    if (!datePart || !timePart) return dateString;
     const [day, month, year] = datePart.split('-');
     const months = [
       'Jan',
@@ -55,11 +57,12 @@ const formatTransactionDate = (dateString: string) => {
       'Dec',
     ];
     const [hour, minute] = timePart.split(':');
+    if (!hour || !minute || !month) return dateString;
     const h = parseInt(hour);
     const ampm = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 || 12;
     return `${day} ${
-      months[parseInt(month) - 1]
+      months[parseInt(month, 10) - 1]
     } ${year} ${h12}:${minute} ${ampm}`;
   } catch {
     return dateString;
@@ -68,7 +71,9 @@ const formatTransactionDate = (dateString: string) => {
 
 const formatDateForDetails = (dateString: string) => {
   try {
+    if (!dateString) return { date: '', time: '' };
     const [datePart, timePart] = dateString.split(' ');
+    if (!datePart || !timePart) return { date: dateString, time: '' };
     const [day, month, year] = datePart.split('-');
     const months = [
       'Jan',
@@ -85,11 +90,14 @@ const formatDateForDetails = (dateString: string) => {
       'Dec',
     ];
     const [hour, minute, second] = timePart.split(':');
+    if (!hour || !minute || !second || !month) {
+      return { date: dateString, time: '' };
+    }
     const h = parseInt(hour);
     const ampm = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 || 12;
     return {
-      date: `${day} ${months[parseInt(month) - 1]} ${year}`,
+      date: `${day} ${months[parseInt(month, 10) - 1]} ${year}`,
       time: `${h12}:${minute}:${second} ${ampm}`,
     };
   } catch {
@@ -155,15 +163,15 @@ const MiniCalendar = ({
   const prevMonth = () => {
     if (viewMonth === 0) {
       setViewMonth(11);
-      setViewYear(y => y - 1);
-    } else setViewMonth(m => m - 1);
+      setViewYear((y) => y - 1);
+    } else setViewMonth((m) => m - 1);
   };
 
   const nextMonth = () => {
     if (viewMonth === 11) {
       setViewMonth(0);
-      setViewYear(y => y + 1);
-    } else setViewMonth(m => m + 1);
+      setViewYear((y) => y + 1);
+    } else setViewMonth((m) => m + 1);
   };
 
   const cells: (number | null)[] = [
@@ -202,7 +210,7 @@ const MiniCalendar = ({
 
       {/* Day Headers */}
       <View style={calStyles.weekRow}>
-        {DAYS.map(d => (
+        {DAYS.map((d) => (
           <Text key={d} style={calStyles.dayHeader}>
             {d}
           </Text>
@@ -217,8 +225,8 @@ const MiniCalendar = ({
               key={col}
               style={[
                 calStyles.dayCell,
-                day && isSelected(day) && calStyles.dayCellSelected,
-                day && isDisabled(day) && calStyles.dayCellDisabled,
+                day && isSelected(day) ? calStyles.dayCellSelected : null,
+                day && isDisabled(day) ? calStyles.dayCellDisabled : null,
               ]}
               disabled={!day || isDisabled(day as number)}
               onPress={() =>
@@ -229,8 +237,8 @@ const MiniCalendar = ({
               <Text
                 style={[
                   calStyles.dayText,
-                  day && isSelected(day) && calStyles.dayTextSelected,
-                  day && isDisabled(day) && calStyles.dayTextDisabled,
+                  day && isSelected(day) ? calStyles.dayTextSelected : null,
+                  day && isDisabled(day) ? calStyles.dayTextDisabled : null,
                 ]}
               >
                 {day || ''}
@@ -282,30 +290,31 @@ const TransactionHistoryScreen = () => {
           to: formatDateForAPI(to, true),
         },
       };
+      console.log('[Txn] execute payload:', payload);
 
-      console.log('Execute Report Payload:', JSON.stringify(payload));
       const enc1 = await encryptRequest(payload);
+      console.log('[Txn] enc1:', enc1);
       const execRes = await apiClient.post(
         '/report/sender_endpoint/v1/report/execute',
         {
           data: enc1.data,
           key: enc1.key,
-        },
+        }
       );
+      console.log('[Txn] execute response:', execRes.data);
 
-      console.log('Execute Report Response:', JSON.stringify(execRes.data));
 
       let executionId: string | null = null;
 
       if (execRes.data?.result) {
         const dec1 = await decryptResponse(execRes.data.result, enc1.plainkey);
-        console.log('Execute Decrypted:', dec1);
 
         if (Array.isArray(dec1)) {
           executionId = dec1[0];
         } else {
           executionId = dec1?.execution_id || dec1?.executionId || dec1?.id;
         }
+        console.log('[Txn] dec1:', dec1, 'executionId:', executionId);
       } else if (execRes.data?.status?.code === 2000) {
         executionId = execRes.data?.execution_id;
       }
@@ -314,41 +323,59 @@ const TransactionHistoryScreen = () => {
         throw new Error('execution_id not received');
       }
 
-      console.log('Execution ID:', executionId);
       setExecutionId(executionId);
+
       // Step 2: Poll Status — FIX
       let reportStatus = '';
       let attempts = 0;
-      while (reportStatus !== 'COMPLETED' && attempts < 20) {
-        // ← 20 attempts
-        await new Promise(r => setTimeout(r, 2000)); // ← 2 second wait
+
+      while (attempts < 20) {
+        await new Promise((r) => setTimeout(r, 2000));
+
         const enc2 = await encryptRequest({ execution_id: executionId });
+        console.log('[Txn] enc2:', enc2);
         const statusRes = await apiClient.post(
           '/report/sender_endpoint/v1/report/status',
           {
             data: enc2.data,
             key: enc2.key,
-          },
+          }
         );
+        console.log('[Txn] status response:', statusRes.data);
 
         if (statusRes.data?.result) {
           const dec2 = await decryptResponse(
             statusRes.data.result,
-            enc2.plainkey,
+            enc2.plainkey
           );
-          console.log('Status Decrypted:', dec2);
-          reportStatus = dec2?.executionState || dec2?.status || ''; // ← executionState!
-          console.log(
-            'Current Status:',
-            reportStatus,
-            'Attempt:',
-            attempts + 1,
-          );
+          console.log('[Txn] dec2:', dec2);
+
+          reportStatus = dec2?.executionState || '';
+          const totalRecords = dec2?.totalRecords ?? 0;
+
+
+          // fetchTransactions mein — COMPLETED ke baad
+          if (reportStatus === 'COMPLETED') {
+            if (totalRecords === 0) {
+              setTransactions([]);
+              setErrorMsg(
+                'No report found for the selected date range please select another date range'
+              );
+              setIsLoading(false);
+              return;
+            }
+            break;
+          }
+
+          if (reportStatus === 'FAILED') {
+            throw new Error('Report generation failed');
+          }
         }
+
         attempts++;
       }
 
-      if (reportStatus !== 'COMPLETED') {
+      if (attempts >= 20) {
         throw new Error('Report generation timed out');
       }
 
@@ -358,20 +385,21 @@ const TransactionHistoryScreen = () => {
         start: 0,
         limit: 50,
       });
+      console.log('[Txn] enc3:', enc3);
 
       const pageRes = await apiClient.post(
         '/report/sender_endpoint/v1/report/page',
         {
           data: enc3.data,
           key: enc3.key,
-        },
+        }
       );
+      console.log('[Txn] page response:', pageRes.data);
 
-      console.log('Page Response:', JSON.stringify(pageRes.data));
 
       if (pageRes.data?.result) {
         const dec3 = await decryptResponse(pageRes.data.result, enc3.plainkey);
-        console.log('Page Decrypted:', dec3);
+        console.log('[Txn] dec3:', dec3);
 
         // ← Data array of arrays hai, header se map karo
         const headers = dec3?.header || [];
@@ -394,11 +422,10 @@ const TransactionHistoryScreen = () => {
           };
         });
 
-        console.log('Mapped Transactions:', JSON.stringify(mapped));
         setTransactions(mapped);
+        console.log('[Txn] mapped rows:', mapped.length);
       }
     } catch (e: any) {
-      console.error('Transaction History Error:', e?.message);
       setErrorMsg(e?.message || 'Failed to fetch transactions');
     } finally {
       setIsLoading(false);
@@ -409,83 +436,10 @@ const TransactionHistoryScreen = () => {
     fetchTransactions(startDate, endDate);
   }, []);
 
-  const [executionId, setExecutionId] = useState<string | null>(null);
+  const [, setExecutionId] = useState<string | null>(null);
 
-  const downloadReport = async (format: 'PDF' | 'EXCEL' | 'CSV') => {
-    try {
-      setIsLoading(true);
-
-      // Step 1: Fresh execute karo
-      const payload = {
-        report_name: 'b2cReport',
-        execution_type: 'CACHED',
-        parameters: {
-          from: formatDateForAPI(startDate, false),
-          to: formatDateForAPI(endDate, true),
-        },
-      };
-
-      const enc1 = await encryptRequest(payload);
-      const execRes = await apiClient.post(
-        '/report/sender_endpoint/v1/report/execute',
-        {
-          data: enc1.data,
-          key: enc1.key,
-        },
-      );
-
-      let execId: string | null = null;
-      if (execRes.data?.result) {
-        const dec1 = await decryptResponse(execRes.data.result, enc1.plainkey);
-        execId = Array.isArray(dec1) ? dec1[0] : dec1?.execution_id;
-      }
-
-      if (!execId) throw new Error('execution_id not received');
-
-      // Step 2: COMPLETED hone tak wait karo
-      let status = '';
-      let attempts = 0;
-      while (status !== 'COMPLETED' && attempts < 20) {
-        await new Promise(r => setTimeout(r, 2000));
-        const enc2 = await encryptRequest({ execution_id: execId });
-        const statusRes = await apiClient.post(
-          '/report/sender_endpoint/v1/report/status',
-          {
-            data: enc2.data,
-            key: enc2.key,
-          },
-        );
-        if (statusRes.data?.result) {
-          const dec2 = await decryptResponse(
-            statusRes.data.result,
-            enc2.plainkey,
-          );
-          status = dec2?.executionState || '';
-        }
-        attempts++;
-      }
-
-      if (status !== 'COMPLETED') throw new Error('Timeout');
-
-      // Step 3: Download
-      const enc3 = await encryptRequest({ execution_id: execId, format });
-      const dlRes = await apiClient.post(
-        '/report/sender_endpoint/v1/report/download',
-        {
-          data: enc3.data,
-          key: enc3.key,
-        },
-      );
-
-      console.log('Download Response:', JSON.stringify(dlRes.data));
-      console.log('Download Headers:', JSON.stringify(dlRes.headers));
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Download failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
   // ─── Handlers ───────────────────────────────────────────────────────────────
+
   const handleTransactionPress = (transaction: any) => {
     setSelectedTransaction(transaction);
     setDetailsVisible(true);
@@ -508,11 +462,13 @@ const TransactionHistoryScreen = () => {
   };
 
   const handleApplyFilter = () => {
-    setStartDate(tempStart);
-    setEndDate(tempEnd);
+    const newStart = tempStart;
+    const newEnd = tempEnd;
+    setStartDate(newStart);
+    setEndDate(newEnd);
     setFilterModalVisible(false);
     setCalendarFor(null);
-    fetchTransactions(tempStart, tempEnd);
+    fetchTransactions(newStart, newEnd); // ← direct call
   };
 
   const handleOpenFilter = () => {
@@ -521,6 +477,25 @@ const TransactionHistoryScreen = () => {
     setCalendarFor(null);
     setFilterModalVisible(true);
   };
+
+  const detailRows: {
+    label: string;
+    key?: string;
+    isStatus?: boolean;
+    isDate?: boolean;
+    isAmount?: boolean;
+    isBalance?: boolean;
+  }[] = [
+    { label: 'Status', isStatus: true },
+    { label: 'Transaction Id', key: 'invoiceNumber' },
+    { label: 'Reference Id', key: 'referenceNumber' },
+    { label: 'Date & Time', isDate: true },
+    { label: 'Description', key: 'description' },
+    { label: 'Type', key: 'txnType' },
+    { label: 'Channel', key: 'channel' },
+    // { label: 'Closing Balance', key: 'closingBalance', isBalance: true },
+    { label: 'Total Amount', key: 'amount', isAmount: true },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -545,12 +520,16 @@ const TransactionHistoryScreen = () => {
 
       <View style={styles.contentContainer}>
         {/* Date Range Display */}
-        <View style={styles.dateRangeContainer}>
+        <TouchableOpacity
+          style={styles.dateRangeContainer}
+          onPress={handleOpenFilter}
+          activeOpacity={0.7}
+        >
           <Text style={styles.dateRangeLabel}>Showing transactions from:</Text>
           <Text style={styles.dateRangeText}>
             {formatDateDisplay(startDate)} — {formatDateDisplay(endDate)}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Transaction Count */}
         {!isLoading && !errorMsg && (
@@ -571,21 +550,11 @@ const TransactionHistoryScreen = () => {
         {!isLoading && errorMsg ? (
           <View style={styles.stateContainer}>
             <Text style={styles.errorText}>{errorMsg}</Text>
-            <TouchableOpacity
-              style={styles.retryBtn}
-              onPress={() => fetchTransactions(startDate, endDate)}
-            >
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
+            {/*  */}
           </View>
         ) : null}
 
-        {/* Empty */}
-        {!isLoading && !errorMsg && transactions.length === 0 && (
-          <View style={styles.stateContainer}>
-            <Text style={styles.emptyText}>No transactions found</Text>
-          </View>
-        )}
+        
 
         {/* Transaction List */}
         {!isLoading && !errorMsg && transactions.length > 0 && (
@@ -658,14 +627,15 @@ const TransactionHistoryScreen = () => {
                   </Text>
                   <Text style={styles.transactionDate}>
                     {formatTransactionDate(
-                      transaction.requestDate || transaction.txnDate || '',
+                      transaction.requestDate || transaction.txnDate || ''
                     )}
                   </Text>
                 </View>
               </TouchableOpacity>
             ))}
             <View style={{ height: 30 }} />
-            <TouchableOpacity
+
+            {/* <TouchableOpacity
               onPress={() => executionId && downloadReport(executionId, 'PDF')}
               // eslint-disable-next-line react-native/no-inline-styles
               style={{
@@ -678,7 +648,7 @@ const TransactionHistoryScreen = () => {
               <Text style={{ color: '#fff', textAlign: 'center' }}>
                 Test Download PDF
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </ScrollView>
         )}
       </View>
@@ -715,7 +685,7 @@ const TransactionHistoryScreen = () => {
                   calendarFor === 'start' && styles.dateSelectBtnActive,
                 ]}
                 onPress={() =>
-                  setCalendarFor(c => (c === 'start' ? null : 'start'))
+                  setCalendarFor((c) => (c === 'start' ? null : 'start'))
                 }
               >
                 <Text style={styles.dateSelectLabel}>From</Text>
@@ -737,7 +707,7 @@ const TransactionHistoryScreen = () => {
                   calendarFor === 'end' && styles.dateSelectBtnActive,
                 ]}
                 onPress={() =>
-                  setCalendarFor(c => (c === 'end' ? null : 'end'))
+                  setCalendarFor((c) => (c === 'end' ? null : 'end'))
                 }
               >
                 <Text style={styles.dateSelectLabel}>To</Text>
@@ -757,7 +727,7 @@ const TransactionHistoryScreen = () => {
               <MiniCalendar
                 selectedDate={tempStart}
                 maxDate={tempEnd}
-                onSelectDate={d => {
+                onSelectDate={(d) => {
                   setTempStart(d);
                   setCalendarFor('end');
                 }}
@@ -768,7 +738,7 @@ const TransactionHistoryScreen = () => {
                 selectedDate={tempEnd}
                 minDate={tempStart}
                 maxDate={today}
-                onSelectDate={d => {
+                onSelectDate={(d) => {
                   setTempEnd(d);
                   setCalendarFor(null);
                 }}
@@ -822,21 +792,7 @@ const TransactionHistoryScreen = () => {
             {selectedTransaction && (
               <ScrollView>
                 <View style={styles.detailsContent}>
-                  {[
-                    { label: 'Status', isStatus: true },
-                    { label: 'Transaction Id', key: 'invoiceNumber' },
-                    { label: 'Reference Id', key: 'referenceNumber' },
-                    { label: 'Date & Time', isDate: true },
-                    { label: 'Description', key: 'description' },
-                    { label: 'Type', key: 'txnType' },
-                    { label: 'Channel', key: 'channel' },
-                    {
-                      label: 'Closing Balance',
-                      key: 'closingBalance',
-                      isBalance: true,
-                    },
-                    { label: 'Total Amount', key: 'amount', isAmount: true },
-                  ].map((row, i) => (
+                  {detailRows.map((row, i) => (
                     <View key={i} style={styles.detailsRow}>
                       <Text style={styles.detailsLabel}>{row.label}</Text>
                       {row.isStatus ? (
@@ -860,7 +816,7 @@ const TransactionHistoryScreen = () => {
                           <Text style={styles.detailsValue}>
                             {
                               formatDateForDetails(
-                                selectedTransaction.requestDate || '',
+                                selectedTransaction.requestDate || ''
                               ).date
                             }
                           </Text>
@@ -868,7 +824,7 @@ const TransactionHistoryScreen = () => {
                           <Text style={styles.detailsValue}>
                             {
                               formatDateForDetails(
-                                selectedTransaction.requestDate || '',
+                                selectedTransaction.requestDate || ''
                               ).time
                             }
                           </Text>
@@ -995,28 +951,22 @@ const styles = StyleSheet.create({
   stateContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingVertical: 60,
   },
   stateText: { color: '#797E82', marginTop: 12, fontSize: 14 },
   errorText: {
     color: '#F90202',
-    fontSize: 14,
+    fontSize: 18,
     textAlign: 'center',
     marginBottom: 12,
   },
-  retryBtn: {
-    backgroundColor: '#017EBF',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
+  
   filterIcon: {
     width: 20,
     height: 20,
     resizeMode: 'contain',
   },
-  retryText: { color: '#fff', fontWeight: '600' },
   emptyText: { color: '#797E82', fontSize: 16 },
   transactionCard: {
     padding: 16,
